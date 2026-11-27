@@ -167,6 +167,15 @@
   const ctx = cvs.getContext('2d', { alpha: false });
   const TAU = Math.PI * 2;
 
+  // 调试：?debug=1 时把视口信息写到标签标题
+  if (location.search.indexOf('debug') > -1) {
+    const dbg = () => {
+      document.title = `${innerWidth}x${innerHeight} dpr${devicePixelRatio} css${cvs.clientWidth}x${cvs.clientHeight}`;
+    };
+    dbg();
+    addEventListener('resize', dbg);
+  }
+
   /* ------------------------------------------------------------
      基础尺寸 / 设备像素比
   ------------------------------------------------------------ */
