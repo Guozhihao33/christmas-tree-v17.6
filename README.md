@@ -4,7 +4,7 @@
 
 ## 在线预览
 
-GitHub Pages：`https://<username>.github.io/christmas-tree-v17.6/`
+GitHub Pages：<https://guozhihao33.github.io/christmas-tree-v17.6/>
 
 ## 特点
 
