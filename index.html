@@ -465,6 +465,13 @@
     const dt = Math.min(48, t - (frame.prev || t) || 16);
     frame.prev = t;
 
+    // 保险：浏览器窗口尺寸变化时自动重排（部分嵌入式窗口不派发 resize 事件）
+    if (window.innerWidth !== W || window.innerHeight !== H) {
+      const oldYaw = CFG.yaw;
+      resize();
+      CFG.yaw = oldYaw;
+    }
+
     // 惯性 + 自动旋转
     if (!input.dragging) {
       input.idle += dt;
