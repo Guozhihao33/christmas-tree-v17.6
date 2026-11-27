@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#05080f" />
-<meta name="description" content="Christmas Tree v17.6 — 一棵会旋转的星空圣诞树" />
+<meta name="description" content="Christmas Tree v17.6 — 打开摄像头，圣诞树出现在你的房间里" />
 <title>Christmas Tree · v17.6</title>
 <style>
   :root{
@@ -25,6 +25,7 @@
     -webkit-font-smoothing:antialiased;
     text-rendering:optimizeLegibility;
   }
+  #cam{position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px;}
   #scene{
     position:fixed;inset:0;
     width:100%;height:100%;
@@ -122,6 +123,108 @@
   }
   .hint span{display:block;}
 
+  /* 摄像头开关 */
+  #cam-toggle{
+    position:fixed;
+    left:clamp(20px,4.2vw,58px);
+    bottom:clamp(20px,4.2vw,42px);
+    z-index:4;
+    padding:9px 16px;
+    font-family:inherit;
+    font-size:11px;
+    letter-spacing:.18em;
+    color:rgba(247,237,221,.72);
+    background:rgba(10,16,26,.55);
+    border:1px solid rgba(243,205,141,.28);
+    border-radius:999px;
+    cursor:pointer;
+    backdrop-filter:blur(10px);
+    transition:all .25s ease;
+  }
+  #cam-toggle:hover{
+    color:#fff6e6;
+    border-color:rgba(243,205,141,.65);
+    background:rgba(18,26,40,.7);
+  }
+  #cam-toggle.on{border-color:rgba(120,220,170,.5);color:rgba(190,240,215,.9);}
+
+  /* 开启摄像头的前置页 */
+  .gate{
+    position:fixed;inset:0;z-index:9;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(3,6,12,.62);
+    backdrop-filter:blur(14px);
+    -webkit-backdrop-filter:blur(14px);
+    transition:opacity .55s ease;
+  }
+  .gate.hide{opacity:0;pointer-events:none;}
+  .gate-inner{
+    width:min(86vw,560px);
+    padding:38px clamp(24px,4vw,48px);
+    text-align:center;
+    border:1px solid rgba(243,205,141,.22);
+    border-radius:6px;
+    background:linear-gradient(180deg,rgba(14,20,32,.72),rgba(8,12,20,.6));
+    box-shadow:0 30px 80px rgba(0,0,0,.55);
+  }
+  .gate-inner .eyebrow{
+    font-size:10px;letter-spacing:.44em;text-transform:uppercase;
+    color:var(--gold-dim);
+  }
+  .gate-inner h2{
+    margin:18px 0 0;
+    font-weight:400;
+    font-size:clamp(19px,2.6vw,28px);
+    letter-spacing:.12em;
+    line-height:1.6;
+    background:linear-gradient(180deg,#fff6e6,#f3cd8d 60%,#bb8f4e);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .gate-inner p{
+    margin:16px 0 0;
+    font-size:13px;
+    line-height:2;
+    letter-spacing:.06em;
+    color:rgba(247,237,221,.62);
+  }
+  .gate-actions{
+    margin-top:30px;
+    display:flex;gap:12px;justify-content:center;flex-wrap:wrap;
+  }
+  .gate-actions button{
+    font-family:inherit;
+    padding:12px 26px;
+    font-size:12.5px;
+    letter-spacing:.2em;
+    border-radius:2px;
+    cursor:pointer;
+    transition:all .25s ease;
+  }
+  .gate-actions .primary{
+    color:#20180d;
+    background:linear-gradient(180deg,#ffe6b8,#e8bd7c);
+    border:1px solid rgba(255,232,190,.8);
+  }
+  .gate-actions .primary:hover{filter:brightness(1.08);box-shadow:0 0 26px rgba(243,205,141,.35);}
+  .gate-actions .primary:disabled{opacity:.6;cursor:default;}
+  .gate-actions .ghost{
+    color:rgba(247,237,221,.72);
+    background:transparent;
+    border:1px solid rgba(243,205,141,.28);
+  }
+  .gate-actions .ghost:hover{color:#fff6e6;border-color:rgba(243,205,141,.6);}
+  .gate-note{
+    margin-top:22px;
+    font-size:10.5px;letter-spacing:.14em;line-height:1.9;
+    color:rgba(247,237,221,.34);
+  }
+  .gate-msg{
+    margin-top:14px;
+    font-size:11.5px;line-height:1.8;
+    color:#ffb4a4;
+    min-height:1em;
+  }
+
   @keyframes riseIn{
     from{opacity:0;transform:translate(-50%,18px);}
     to{opacity:1;transform:translate(-50%,0);}
@@ -138,7 +241,9 @@
 </style>
 </head>
 <body>
-<canvas id="scene" aria-label="旋转的星空圣诞树"></canvas>
+<canvas id="scene" aria-label="摄像头里的圣诞树"></canvas>
+<video id="cam" playsinline muted autoplay></video>
+
 <div class="vignette"></div>
 <div class="grain"></div>
 
@@ -159,29 +264,59 @@
   <span>滚轮 · 远近</span>
 </div>
 
+<button id="cam-toggle" type="button">开启摄像头</button>
+
+<div class="gate" id="gate">
+  <div class="gate-inner">
+    <div class="eyebrow">Studio Winter · v17.6</div>
+    <h2>让圣诞树<br>出现在你的房间里</h2>
+    <p>开启摄像头后，屏幕会变成一扇窗：<br>圣诞树站在你身边，灯亮着，雪正在落。</p>
+    <div class="gate-actions">
+      <button id="btn-cam" class="primary" type="button">开启摄像头</button>
+      <button id="btn-night" class="ghost" type="button">先看夜景版</button>
+    </div>
+    <div class="gate-msg" id="gate-msg"></div>
+    <div class="gate-note">画面只在本机实时渲染 · 不上传 · 不保存</div>
+  </div>
+</div>
+
 <script>
 (() => {
   'use strict';
 
   const cvs = document.getElementById('scene');
   const ctx = cvs.getContext('2d', { alpha: false });
+  const video = document.getElementById('cam');
+  const gate = document.getElementById('gate');
+  const gateMsg = document.getElementById('gate-msg');
+  const btnCam = document.getElementById('btn-cam');
+  const btnNight = document.getElementById('btn-night');
+  const camToggle = document.getElementById('cam-toggle');
   const TAU = Math.PI * 2;
 
   // 调试：?debug=1 时把视口信息写到标签标题
-  if (location.search.indexOf('debug') > -1) {
+  const enableDebugTitle = () => {
+    if (location.search.indexOf('debug') === -1) return;
     const dbg = () => {
-      document.title = `${innerWidth}x${innerHeight} dpr${devicePixelRatio} css${cvs.clientWidth}x${cvs.clientHeight}`;
+      document.title = `${innerWidth}x${innerHeight} dpr${devicePixelRatio} css${cvs.clientWidth}x${cvs.clientHeight} mode${state.mode}`;
     };
     dbg();
     addEventListener('resize', dbg);
-  }
+  };
 
   /* ------------------------------------------------------------
-     基础尺寸 / 设备像素比
+     状态
   ------------------------------------------------------------ */
+  const state = {
+    mode: 'gate',        // gate | cam | night
+    stream: null,
+    camReady: false,
+  };
+  enableDebugTitle();
+
   let W = 0, H = 0, DPR = 1;
-  let bg = null;                 // 背景缓存画布
-  let bgCtx = null;
+  let bg = null;
+  const camBuf = document.createElement('canvas');
 
   const CFG = {
     treeH: 7.4,
@@ -189,13 +324,14 @@
     camDist: 12.2,
     camDistTarget: 12.2,
     focalRatio: 0.86,
-    centerY: 0.525,
+    centerY: 0.525,       // 夜景版树的位置
+    camCenterY: 0.615,    // 摄像头版树的位置（更靠下，站在地面上）
     spin: 0.00055,
     yaw: 0.62,
   };
 
   /* ------------------------------------------------------------
-     光点贴图（预渲染，避免逐帧 shadowBlur）
+     光点贴图
   ------------------------------------------------------------ */
   function makeGlow(r, g, b) {
     const S = 64;
@@ -229,13 +365,12 @@
   };
 
   /* ------------------------------------------------------------
-     树的几何
+     树
   ------------------------------------------------------------ */
   const HALF_H = CFG.treeH / 2;
   const Y_BOTTOM = -HALF_H;
   const Y_TOP = HALF_H;
 
-  // t: 0 = 树底, 1 = 树尖
   function radiusAt(t) {
     return CFG.treeR * Math.pow(1 - t, 0.88) + 0.05;
   }
@@ -251,20 +386,16 @@
     bulbs.length = 0;
     ornaments.length = 0;
 
-    /* ---- 松针 / 针叶体积 ---- */
     const N = 6800;
     for (let i = 0; i < N; i++) {
-      const t = Math.pow(Math.random(), 0.62);          // 底部更密
+      const t = Math.pow(Math.random(), 0.62);
       const y = Y_BOTTOM + t * CFG.treeH;
       const theta = Math.random() * TAU;
 
-      // 分层枝丫：让轮廓出现真实冷杉的层叠起伏
       const tier = 1 + 0.085 * Math.sin(t * Math.PI * 16 + theta * 2);
       const base = radiusAt(t) * tier;
 
-      // 体积填充：多数贴近表面，少量在内部
       const fill = 0.34 + 0.66 * Math.sqrt(Math.random());
-      // 树枝外沿的“针尖”
       const tip = Math.random() < 0.09 ? 1.0 : fill;
       const rad = base * tip;
 
@@ -290,7 +421,6 @@
       foliage.push({ x: px, y: py, z: pz, s: size, a: alpha, img: sprite });
     }
 
-    /* ---- 螺旋灯带 ---- */
     const L = 460;
     for (let i = 0; i < L; i++) {
       const t = i / (L - 1);
@@ -311,7 +441,6 @@
       });
     }
 
-    /* ---- 挂饰球 ---- */
     const PALETTE = [SPR.gold, SPR.red, SPR.ice, SPR.white, SPR.gold, SPR.red];
     const M = 78;
     for (let i = 0; i < M; i++) {
@@ -333,8 +462,7 @@
 
   function buildStars() {
     starsBg.length = 0;
-    const n = 120;
-    for (let i = 0; i < n; i++) {
+    for (let i = 0; i < 120; i++) {
       starsBg.push({
         x: Math.random(),
         y: Math.random() * 0.75,
@@ -350,7 +478,7 @@
     snow.length = 0;
     const n = Math.min(340, Math.max(120, Math.round(W * 0.32)));
     for (let i = 0; i < n; i++) {
-      const z = Math.random();                          // 0 远 → 1 近
+      const z = Math.random();
       snow.push({
         x: Math.random() * W,
         y: Math.random() * H,
@@ -365,47 +493,136 @@
   }
 
   /* ------------------------------------------------------------
-     背景（缓存一次）
+     夜景背景
   ------------------------------------------------------------ */
   function paintBackground() {
     bg = document.createElement('canvas');
     bg.width = Math.max(1, Math.floor(W * DPR));
     bg.height = Math.max(1, Math.floor(H * DPR));
-    bgCtx = bg.getContext('2d');
-    bgCtx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const b = bg.getContext('2d');
+    b.setTransform(DPR, 0, 0, DPR, 0, 0);
 
-    const g = bgCtx.createLinearGradient(0, 0, 0, H);
+    const g = b.createLinearGradient(0, 0, 0, H);
     g.addColorStop(0.00, '#04060c');
     g.addColorStop(0.38, '#071120');
     g.addColorStop(0.72, '#0a1524');
     g.addColorStop(1.00, '#050a13');
-    bgCtx.fillStyle = g;
-    bgCtx.fillRect(0, 0, W, H);
+    b.fillStyle = g;
+    b.fillRect(0, 0, W, H);
 
-    // 冷调天光
-    const cool = bgCtx.createRadialGradient(W * 0.5, H * 0.18, 0, W * 0.5, H * 0.18, Math.max(W, H) * 0.62);
+    const cool = b.createRadialGradient(W * 0.5, H * 0.18, 0, W * 0.5, H * 0.18, Math.max(W, H) * 0.62);
     cool.addColorStop(0, 'rgba(38,78,140,.30)');
     cool.addColorStop(0.45, 'rgba(24,52,96,.14)');
     cool.addColorStop(1, 'rgba(8,18,34,0)');
-    bgCtx.fillStyle = cool;
-    bgCtx.fillRect(0, 0, W, H);
+    b.fillStyle = cool;
+    b.fillRect(0, 0, W, H);
 
-    // 地面暖光
-    const warm = bgCtx.createRadialGradient(W * 0.5, H * 0.88, 0, W * 0.5, H * 0.88, Math.max(W, H) * 0.45);
+    const warm = b.createRadialGradient(W * 0.5, H * 0.88, 0, W * 0.5, H * 0.88, Math.max(W, H) * 0.45);
     warm.addColorStop(0, 'rgba(120,72,24,.26)');
     warm.addColorStop(0.5, 'rgba(78,46,16,.10)');
     warm.addColorStop(1, 'rgba(20,12,4,0)');
-    bgCtx.fillStyle = warm;
-    bgCtx.fillRect(0, 0, W, H);
+    b.fillStyle = warm;
+    b.fillRect(0, 0, W, H);
 
-    // 树后面的柔光晕
-    const halo = bgCtx.createRadialGradient(W * 0.5, H * 0.5, 0, W * 0.5, H * 0.5, Math.min(W, H) * 0.55);
+    const halo = b.createRadialGradient(W * 0.5, H * 0.5, 0, W * 0.5, H * 0.5, Math.min(W, H) * 0.55);
     halo.addColorStop(0, 'rgba(46,102,96,.16)');
     halo.addColorStop(0.55, 'rgba(22,56,64,.06)');
     halo.addColorStop(1, 'rgba(0,0,0,0)');
-    bgCtx.fillStyle = halo;
-    bgCtx.fillRect(0, 0, W, H);
+    b.fillStyle = halo;
+    b.fillRect(0, 0, W, H);
   }
+
+  /* ------------------------------------------------------------
+     摄像头
+  ------------------------------------------------------------ */
+  function hasFilter(c) { return 'filter' in c; }
+
+  async function enableCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('unsupported');
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        facingMode: 'user',
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      },
+    });
+    state.stream = stream;
+    video.srcObject = stream;
+    await video.play();
+    state.camReady = true;
+    state.mode = 'cam';
+    closeGate();
+    camToggle.textContent = '关闭摄像头';
+    camToggle.classList.add('on');
+  }
+
+  function stopCamera() {
+    if (state.stream) {
+      state.stream.getTracks().forEach((t) => t.stop());
+      state.stream = null;
+    }
+    video.srcObject = null;
+    state.camReady = false;
+    state.mode = 'night';
+    camToggle.textContent = '开启摄像头';
+    camToggle.classList.remove('on');
+  }
+
+  function closeGate() {
+    gate.classList.add('hide');
+    setTimeout(() => { gate.style.display = 'none'; }, 600);
+  }
+
+  btnCam.addEventListener('click', async () => {
+    if (btnCam.disabled) return;
+    btnCam.disabled = true;
+    const old = btnCam.textContent;
+    btnCam.textContent = '正在打开摄像头…';
+    gateMsg.textContent = '';
+    try {
+      await enableCamera();
+    } catch (err) {
+      state.mode = 'night';
+      let tip = '摄像头没能打开。';
+      if (err && (err.name === 'NotAllowedError' || err.name === 'SecurityError')) {
+        tip = '你拒绝了摄像头权限，或浏览器拦截了它。';
+      } else if (err && err.name === 'NotFoundError') {
+        tip = '这台设备上没有找到摄像头。';
+      } else if (err && err.message === 'unsupported') {
+        tip = '当前浏览器不支持摄像头调用。';
+      }
+      gateMsg.textContent = tip + ' 已先切到夜景版，你可以随时点左下角重新开启。';
+      setTimeout(closeGate, 1800);
+      camToggle.textContent = '开启摄像头';
+      camToggle.classList.remove('on');
+    } finally {
+      btnCam.disabled = false;
+      btnCam.textContent = old;
+    }
+  });
+
+  btnNight.addEventListener('click', () => {
+    state.mode = 'night';
+    closeGate();
+  });
+
+  camToggle.addEventListener('click', async () => {
+    if (state.mode === 'cam') {
+      stopCamera();
+      return;
+    }
+    const old = camToggle.textContent;
+    camToggle.textContent = '正在打开…';
+    try {
+      await enableCamera();
+    } catch (err) {
+      camToggle.textContent = '摄像头不可用';
+      setTimeout(() => { camToggle.textContent = old; }, 2000);
+    }
+  });
 
   /* ------------------------------------------------------------
      交互
@@ -465,23 +682,60 @@
   }
 
   /* ------------------------------------------------------------
-     绘制
+     摄像头画面铺满（镜像 + 半分辨率柔化）
   ------------------------------------------------------------ */
-  const proj = { k: 0 };
+  function drawCamera() {
+    const vw = video.videoWidth, vh = video.videoHeight;
+    if (!vw || !vh) return;
 
+    const bw = Math.max(2, Math.round(W * 0.5));
+    const bh = Math.max(2, Math.round(H * 0.5));
+    if (camBuf.width !== bw || camBuf.height !== bh) {
+      camBuf.width = bw;
+      camBuf.height = bh;
+    }
+    const c = camBuf.getContext('2d');
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.save();
+    c.translate(bw, 0);
+    c.scale(-1, 1);
+    const s = Math.max(bw / vw, bh / vh);
+    const dw = vw * s, dh = vh * s;
+    const dx = (bw - dw) / 2, dy = (bh - dh) / 2;
+    if (hasFilter(c)) c.filter = 'brightness(.62) saturate(.9)';
+    c.drawImage(video, dx, dy, dw, dh);
+    if (hasFilter(c)) c.filter = 'none';
+    c.restore();
+
+    ctx.save();
+    if (hasFilter(ctx)) ctx.filter = 'blur(2px)';
+    ctx.drawImage(camBuf, 0, 0, W, H);
+    ctx.restore();
+    if (hasFilter(ctx)) ctx.filter = 'none';
+
+    // 色调：上方冷、地面暖
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, 'rgba(6,14,28,.58)');
+    g.addColorStop(0.45, 'rgba(4,10,20,.22)');
+    g.addColorStop(1, 'rgba(34,20,8,.42)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  /* ------------------------------------------------------------
+     主循环
+  ------------------------------------------------------------ */
   function frame(now) {
     const t = now || 0;
     const dt = Math.min(48, t - (frame.prev || t) || 16);
     frame.prev = t;
 
-    // 保险：浏览器窗口尺寸变化时自动重排（部分嵌入式窗口不派发 resize 事件）
     if (window.innerWidth !== W || window.innerHeight !== H) {
       const oldYaw = CFG.yaw;
       resize();
       CFG.yaw = oldYaw;
     }
 
-    // 惯性 + 自动旋转
     if (!input.dragging) {
       input.idle += dt;
       if (Math.abs(input.vel) > 0.0002) {
@@ -493,44 +747,64 @@
     }
     CFG.camDist += (CFG.camDistTarget - CFG.camDist) * Math.min(1, dt * 0.006);
 
+    const isCam = state.mode === 'cam' && state.camReady && video.readyState >= 2 && video.videoWidth > 0;
+
     const cosY = Math.cos(CFG.yaw);
     const sinY = Math.sin(CFG.yaw);
     const f = Math.min(H * CFG.focalRatio, W * 1.18);
     const cx = W * 0.5;
-    const bob = Math.sin(t * 0.00042) * H * 0.006;
-    const cy = H * CFG.centerY + bob;
+    const bob = Math.sin(t * 0.00042) * H * (isCam ? 0.0025 : 0.006);
+    const cy = H * (isCam ? CFG.camCenterY : CFG.centerY) + bob;
 
-    // 背景
-    if (bg) ctx.drawImage(bg, 0, 0, W, H);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+
+    /* 背景 */
+    if (isCam) {
+      drawCamera();
+      // 树后面压暗，让灯光更立体
+      const rad = ctx.createRadialGradient(cx, cy - H * 0.02, 0, cx, cy, Math.max(W, H) * 0.7);
+      rad.addColorStop(0, 'rgba(3,6,12,.62)');
+      rad.addColorStop(0.55, 'rgba(3,6,12,.26)');
+      rad.addColorStop(1, 'rgba(3,6,12,0)');
+      ctx.fillStyle = rad;
+      ctx.fillRect(0, 0, W, H);
+    } else if (bg) {
+      ctx.drawImage(bg, 0, 0, W, H);
+    }
 
     ctx.globalCompositeOperation = 'lighter';
 
-    // 星空
-    for (let i = 0; i < starsBg.length; i++) {
-      const s = starsBg[i];
-      const tw = 0.55 + 0.45 * Math.sin(t * 0.001 * s.sp + s.ph);
-      ctx.globalAlpha = s.a * tw * 0.8;
-      ctx.drawImage(SPR.white, s.x * W - s.r * 3, s.y * H - s.r * 3, s.r * 6, s.r * 6);
+    /* 星空（仅夜景） */
+    if (!isCam) {
+      for (let i = 0; i < starsBg.length; i++) {
+        const s = starsBg[i];
+        const tw = 0.55 + 0.45 * Math.sin(t * 0.001 * s.sp + s.ph);
+        ctx.globalAlpha = s.a * tw * 0.8;
+        ctx.drawImage(SPR.white, s.x * W - s.r * 3, s.y * H - s.r * 3, s.r * 6, s.r * 6);
+      }
     }
 
-    // 地面反光
-    const groundY = cy - Y_BOTTOM * (f / CFG.camDist);
-    ctx.globalAlpha = 0.5;
+    const scaleK = f / CFG.camDist;
+    const groundY = cy - Y_BOTTOM * scaleK;
+
+    /* 地面光 */
+    ctx.globalAlpha = isCam ? 0.22 : 0.5;
     const gw = Math.max(220, W * 0.5);
     ctx.drawImage(SPR.ground, cx - gw / 2, groundY - gw * 0.16, gw, gw * 0.34);
 
-    // 树的投影（暗）
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = 0.2;
-    ctx.fillStyle = 'rgba(2,4,8,1)';
-    ctx.beginPath();
-    ctx.ellipse(cx, groundY + 2, Math.max(52, W * 0.062), Math.max(8, W * 0.012), 0, 0, TAU);
-    ctx.fill();
-    ctx.globalCompositeOperation = 'lighter';
+    /* 投影（仅夜景） */
+    if (!isCam) {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 0.2;
+      ctx.fillStyle = 'rgba(2,4,8,1)';
+      ctx.beginPath();
+      ctx.ellipse(cx, groundY + 2, Math.max(52, W * 0.062), Math.max(8, W * 0.012), 0, 0, TAU);
+      ctx.fill();
+      ctx.globalCompositeOperation = 'lighter';
+    }
 
-    const scaleK = f / CFG.camDist;
-
-    /* ---- 针叶 ---- */
+    /* 针叶 */
     for (let i = 0; i < foliage.length; i++) {
       const p = foliage[i];
       const xr = p.x * cosY - p.z * sinY;
@@ -542,14 +816,14 @@
       const sy = cy - p.y * k;
       if (sx < -40 || sx > W + 40 || sy < -40 || sy > H + 40) continue;
 
-      const depth = (zr + CFG.treeR) / (CFG.treeR * 2);      // 0 后 → 1 前
+      const depth = (zr + CFG.treeR) / (CFG.treeR * 2);
       const dim = 0.42 + 0.58 * (depth * depth * (3 - 2 * depth));
       const size = p.s * k * 2.5;
       ctx.globalAlpha = p.a * dim;
       ctx.drawImage(p.img, sx - size / 2, sy - size / 2, size, size);
     }
 
-    /* ---- 灯带 ---- */
+    /* 灯带 */
     for (let i = 0; i < bulbs.length; i++) {
       const p = bulbs[i];
       const xr = p.x * cosY - p.z * sinY;
@@ -566,12 +840,11 @@
       ctx.globalAlpha = p.a * (0.35 + 0.65 * depth) * twinkle;
       ctx.drawImage(p.img, sx - core / 2, sy - core / 2, core, core);
 
-      // 高光芯
       ctx.globalAlpha = Math.min(1, twinkle * 0.85);
       ctx.drawImage(SPR.white, sx - core * 0.16, sy - core * 0.16, core * 0.32, core * 0.32);
     }
 
-    /* ---- 挂饰 ---- */
+    /* 挂饰 */
     for (let i = 0; i < ornaments.length; i++) {
       const p = ornaments[i];
       const xr = p.x * cosY - p.z * sinY;
@@ -587,13 +860,12 @@
       ctx.globalAlpha = p.a * (0.3 + 0.7 * depth);
       ctx.drawImage(p.img, sx - size / 2, sy - size / 2, size, size);
 
-      // 球面上的小高光
       ctx.globalAlpha = 0.55 * depth;
       const hl = size * 0.2;
       ctx.drawImage(SPR.white, sx - size * 0.26, sy - size * 0.3, hl, hl);
     }
 
-    /* ---- 树顶星 ---- */
+    /* 树顶星 */
     {
       const d = CFG.camDist - 0.3;
       const k = f / d;
@@ -602,7 +874,6 @@
       const pulse = 0.78 + 0.22 * Math.sin(t * 0.0016);
       const R = 0.5 * k * 0.42;
 
-      // 光晕
       ctx.globalAlpha = 0.62 * pulse;
       const halo = R * 6.2;
       ctx.drawImage(SPR.star, sx - halo / 2, sy - halo / 2, halo, halo);
@@ -610,7 +881,6 @@
       const halo2 = R * 2.6;
       ctx.drawImage(SPR.star, sx - halo2 / 2, sy - halo2 / 2, halo2, halo2);
 
-      // 星形本体
       ctx.save();
       ctx.translate(sx, sy);
       ctx.rotate(Math.sin(t * 0.0006) * 0.08);
@@ -630,7 +900,6 @@
       ctx.closePath();
       ctx.fill();
 
-      // 长光芒
       const rays = 6;
       for (let i = 0; i < rays; i++) {
         const a = i * Math.PI / 3 + Math.sin(t * 0.0009) * 0.12;
@@ -652,8 +921,7 @@
       ctx.restore();
     }
 
-    /* ---- 雪 ---- */
-    ctx.globalCompositeOperation = 'lighter';
+    /* 雪 */
     for (let i = 0; i < snow.length; i++) {
       const s = snow[i];
       s.y += s.vy * (dt / 16);
@@ -678,13 +946,8 @@
   ------------------------------------------------------------ */
   buildTree();
   resize();
-  window.addEventListener('resize', () => {
-    const oldYaw = CFG.yaw;
-    resize();
-    CFG.yaw = oldYaw;
-  });
+  window.addEventListener('resize', resize);
 
-  // 首帧淡入
   cvs.style.opacity = '0';
   requestAnimationFrame((ts) => {
     cvs.style.transition = 'opacity 1.2s ease';
